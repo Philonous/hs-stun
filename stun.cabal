@@ -1,0 +1,18 @@
+name:                stun
+version:             0.1.0.0
+synopsis:            STUN
+-- description:
+license:             MIT
+license-file:        LICENSE
+author:              Philipp Balzarek
+maintainer:          p.balzarek@googlemail.com
+-- copyright:
+category:            Network
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  exposed-modules:     Network.Stun
+  hs-source-dirs:      source
+  -- other-modules:
+  build-depends:       base ==4.6.*, network ==2.4.*, cereal, QuickCheck, bytestring
