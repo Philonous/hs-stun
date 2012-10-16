@@ -2,10 +2,11 @@
 {-# LANGUAGE RecordWildCards #-}
 module Tests where
 
-import qualified Network.Stun as Stun
+import qualified Network.Stun.Serialize as Stun
 import Test.QuickCheck
 import Data.Serialize
 
+import qualified Data.ByteString as BS
 import Control.Monad
 
 instance Arbitrary Stun.MessageClass where
@@ -28,16 +29,22 @@ checkDecEnc word = let word' = word `mod` (2^14) in
 check1 = quickCheckWith (stdArgs{maxSuccess = 1000 }) checkEncDec
 check2 = quickCheckWith (stdArgs{maxSuccess = 1000 }) checkDecEnc
 
-instance Arbitrary Stun.MessageHeader where
+instance Arbitrary Stun.Message where
     arbitrary = do
         messageMethod <- (`mod` (2^12)) `liftM` arbitrary
         messageClass <- arbitrary
-        messageLength <- arbitrary
-        messageId <- arbitrary
-        return Stun.MessageHeader{..}
+        transactionId <- arbitrary
+        messageAttributes <- arbitrary
+        return Stun.Message{..}
 
 
 checkSerializer header = decode (encode header) == Right header
 
 check3 = quickCheckWith (stdArgs{maxSuccess = 1000 })
-              (checkSerializer :: Stun.MessageHeader -> Bool)
+              (checkSerializer :: Stun.Message -> Bool)
+
+instance Arbitrary Stun.Attribute where
+    arbitrary = liftM2 Stun.Attribute arbitrary (BS.pack `liftM` arbitrary)
+
+check4 = quickCheckWith (stdArgs{maxSuccess = 1000 })
+              (checkSerializer :: Stun.Attribute -> Bool)
