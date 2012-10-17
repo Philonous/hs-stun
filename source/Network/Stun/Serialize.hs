@@ -1,31 +1,19 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
+
 module Network.Stun.Serialize where
 
-import Network
-import Control.Monad
-import Data.Word
-import Data.Serialize
-import Data.Bits
-
-import Numeric
-
+import           Control.Monad
+import           Data.Bits
+import           Data.Serialize
+import           Data.Word
+import           Network
+import           Network.Stun.Base
+import           Numeric
 
 import qualified Data.ByteString as BS
-
-data MessageClass = Request
-                  | Success
-                  | Failure
-                  | Indication
-                    deriving (Show, Eq)
-
-
-cookie = 0x2112A442 :: Word32
-
-
-data Attribute = Attribute { attributeType :: Word16
-                           , attributeValue :: BS.ByteString
-                           } deriving (Show, Eq)
 
 putAttribute Attribute{..} = do
     putWord16be attributeType
@@ -40,14 +28,12 @@ getAttribute = do
     length <- getWord16be
     attributeValue <- getBytes (fromIntegral length)
     -- consume padding:
-    replicateM (negate (fromIntegral length) `mod` 4) $ getWord8
+    _ <- replicateM (negate (fromIntegral length) `mod` 4) $ getWord8
     return Attribute{..}
 
 instance Serialize Attribute where
     put = putAttribute
     get = getAttribute
-
-type Method = Word16
 
 encodeMessageType :: Method -> MessageClass -> Word16
 encodeMessageType method messageClass =
@@ -79,13 +65,6 @@ decodeMessageType word = (method, mClass)
         .|. ((word .&. 0xe0)  `shiftR` 1)  -- next 3 bits are offset by 1
         .|. ((word .&. 0x3e00) `shiftR` 2) -- highest 5 bits are offset by 2
 
-type TransactionID = (Word32, Word32, Word32)
-
-data Message = Message { messageMethod :: Method
-                       , messageClass  :: MessageClass
-                       , transactionId :: TransactionID
-                       , messageAttributes   :: [Attribute]
-                       } deriving (Eq, Show)
 
 putMessage :: Message -> PutM ()
 putMessage Message{..} = do
@@ -93,7 +72,7 @@ putMessage Message{..} = do
     let messageLength = (fromIntegral $ BS.length messageBody)
     putWord16be messageLength
     putWord32be cookie
-    let (tid1, tid2, tid3) = transactionId
+    let (tid1, tid2, tid3) = transactionID
     putWord32be tid1
     putWord32be tid2
     putWord32be tid3
@@ -108,8 +87,7 @@ getMessage = do
     messageLength <- getWord16be
     guard $ messageLength `mod` 4 == 0
     guard . (== cookie) =<< getWord32be
-    transactionId <- liftM3 (,,) getWord32be getWord32be getWord32be
-
+    transactionID <- liftM3 (,,) getWord32be getWord32be getWord32be
     messageAttributes <- getMessageAttributes
     return Message{..}
   where
@@ -124,6 +102,5 @@ getMessage = do
 instance Serialize Message where
     put = putMessage
     get = getMessage
-
 
 showBits a = reverse [if testBit a i then '1' else '0' | i <- [0.. bitSize a - 1]]

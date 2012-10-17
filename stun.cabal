@@ -15,4 +15,9 @@ library
   exposed-modules:     Network.Stun
   hs-source-dirs:      source
   -- other-modules:
-  build-depends:       base ==4.6.*, network ==2.4.*, cereal, QuickCheck, bytestring
+  build-depends:       base ==4.6.*
+                     , network ==2.4.*
+                     , cereal
+                     , QuickCheck
+                     , bytestring
+                     , random
