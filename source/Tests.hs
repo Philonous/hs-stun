@@ -3,10 +3,13 @@
 module Main where
 
 import           Data.Serialize
+import qualified Data.Text as Text
 import           Data.Word
 import qualified Network.Stun.Base as Stun
+import qualified Network.Stun.Error as Stun
 import qualified Network.Stun.MappedAddress as Stun
 import qualified Network.Stun.Serialize as Stun
+
 import           Test.QuickCheck
 import           Test.Framework.Providers.QuickCheck2
 import           Test.Framework
@@ -43,7 +46,7 @@ instance Arbitrary Stun.Message where
         return Stun.Message{..}
 
 
-checkSerializer x = decode (encode header) == Right x
+checkSerializer x = decode (encode x) == Right x
 
 test3 = testProperty "checkSerializer/Message"
             (checkSerializer :: Stun.Message -> Bool)
@@ -75,10 +78,20 @@ xorAddressInvolution tid addr = Stun.xorAddress tid  (Stun.xorAddress tid addr)
                                   == addr
 test6 = testProperty "xorAddressInvolution" xorAddressInvolution
 
+instance Arbitrary Stun.Error where
+    arbitrary = do
+        code <- choose (300,699)
+        textLength <- choose (0,128)
+        reason <- Text.pack <$> replicateM textLength arbitrary
+        return Stun.Error{..}
+test7 = testProperty "checkSerializer/Error"
+          (checkSerializer :: Stun.Error -> Bool)
+
 main = defaultMain[ test1
                   , test2
                   , test3
                   , test4
                   , test5
                   , test6
+                  , test7
                   ]

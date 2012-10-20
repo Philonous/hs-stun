@@ -19,6 +19,8 @@ library
                      , network ==2.4.*
                      , cereal
                      , bytestring
+                     , text
+                     , stringprep
                      , random
 
 test-suite test-serialize
@@ -29,6 +31,7 @@ test-suite test-serialize
                  , network ==2.4.*
                  , cereal
                  , bytestring
+                 , text
                  , random
                  , QuickCheck
                  , test-framework
