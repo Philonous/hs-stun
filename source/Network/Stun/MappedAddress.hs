@@ -33,10 +33,10 @@ putAddress (Inet6 port (addr1, addr2, addr3, addr4)) = do
     putWord8 0
     putWord8 2
     putWord16be $ fromIntegral port
-    putWord32be addr4
-    putWord32be addr3
-    putWord32be addr2
     putWord32be addr1
+    putWord32be addr2
+    putWord32be addr3
+    putWord32be addr4
 
 getAddress = do
     guard . (== 0) =<< getWord8
@@ -47,10 +47,10 @@ getAddress = do
             address <- getWord32host
             return $ Inet port address
         2 -> do
-            addr4 <- getWord32be
-            addr3 <- getWord32be
-            addr2 <- getWord32be
             addr1 <- getWord32be
+            addr2 <- getWord32be
+            addr3 <- getWord32be
+            addr4 <- getWord32be
             return (Inet6 port (addr1, addr2, addr3, addr4))
         _ -> mzero
 
