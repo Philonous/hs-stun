@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RecordWildCards #-}
-module Tests where
+module Main where
 
 import           Data.Serialize
 import           Data.Word
@@ -8,6 +8,8 @@ import qualified Network.Stun.Base as Stun
 import qualified Network.Stun.MappedAddress as Stun
 import qualified Network.Stun.Serialize as Stun
 import           Test.QuickCheck
+import           Test.Framework.Providers.QuickCheck2
+import           Test.Framework
 
 import qualified Data.ByteString as BS
 import           Control.Applicative
@@ -19,6 +21,8 @@ instance Arbitrary Stun.MessageClass where
                          , Stun.Failure
                          , Stun.Indication]
 
+
+
 checkEncDec method messageClass = let method' = method `mod` (2^12) in
     (method', messageClass) ==
       (Stun.decodeMessageType $ Stun.encodeMessageType method' messageClass)
@@ -27,8 +31,8 @@ checkDecEnc word = let word' = word `mod` (2^14) in
         word' == (uncurry Stun.encodeMessageType $ Stun.decodeMessageType word')
 
 
-check1 = quickCheckWith (stdArgs{maxSuccess = 1000 }) checkEncDec
-check2 = quickCheckWith (stdArgs{maxSuccess = 1000 }) checkDecEnc
+test1 = testProperty "checkEncDec" checkEncDec
+test2 = testProperty "checkDecEnc" checkDecEnc
 
 instance Arbitrary Stun.Message where
     arbitrary = do
@@ -39,16 +43,16 @@ instance Arbitrary Stun.Message where
         return Stun.Message{..}
 
 
-checkSerializer header = decode (encode header) == Right header
+checkSerializer x = decode (encode header) == Right x
 
-check3 = quickCheckWith (stdArgs{maxSuccess = 1000 })
-              (checkSerializer :: Stun.Message -> Bool)
+test3 = testProperty "checkSerializer/Message"
+            (checkSerializer :: Stun.Message -> Bool)
 
 instance Arbitrary Stun.Attribute where
     arbitrary = liftM2 Stun.Attribute arbitrary (BS.pack `liftM` arbitrary)
 
-check4 = quickCheckWith (stdArgs{maxSuccess = 1000 })
-              (checkSerializer :: Stun.Attribute -> Bool)
+test4 = testProperty "checkSerializer/Attribute"
+            (checkSerializer :: Stun.Attribute -> Bool)
 
 instance Arbitrary Stun.Address where
     arbitrary = do
@@ -64,9 +68,17 @@ instance Arbitrary Stun.Address where
 
                 return $ Stun.Inet6 port addr
 
-check5 = quickCheckWith (stdArgs{maxSuccess = 1000 })
-              (checkSerializer :: Stun.Address -> Bool)
+test5 = testProperty "checkSerializer/Address"
+            (checkSerializer :: Stun.Address -> Bool)
 
 xorAddressInvolution tid addr = Stun.xorAddress tid  (Stun.xorAddress tid addr)
                                   == addr
-check6 = quickCheckWith (stdArgs{maxSuccess = 1000 }) xorAddressInvolution
+test6 = testProperty "xorAddressInvolution" xorAddressInvolution
+
+main = defaultMain[ test1
+                  , test2
+                  , test3
+                  , test4
+                  , test5
+                  , test6
+                  ]

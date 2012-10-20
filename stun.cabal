@@ -18,6 +18,18 @@ library
   build-depends:       base ==4.6.*
                      , network ==2.4.*
                      , cereal
-                     , QuickCheck
                      , bytestring
                      , random
+
+test-suite test-serialize
+    type:          exitcode-stdio-1.0
+    main-is:       Tests.hs
+    hs-source-dirs: source
+    build-depends: base ==4.6.*
+                 , network ==2.4.*
+                 , cereal
+                 , bytestring
+                 , random
+                 , QuickCheck
+                 , test-framework
+                 , test-framework-quickcheck2
