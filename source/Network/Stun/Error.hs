@@ -23,7 +23,7 @@ putError Error{..} = do
     putByteString $ Text.encodeUtf8 reason
 
 getError = do
-    _ <- getWord16be
+    skip 2
     hundreds <- (fromIntegral . (0x7 .&.)) <$> getWord8 -- mask out highest 5
                                                         -- bits
     guard (hundreds >= 3 && hundreds <= 6 )
