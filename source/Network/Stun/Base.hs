@@ -22,6 +22,7 @@ data Message = Message { messageMethod :: Method
                        , messageClass  :: MessageClass
                        , transactionID :: TransactionID
                        , messageAttributes   :: [Attribute]
+                       , fingerprint    :: Bool
                        } deriving (Eq, Show)
 
 -- "magic cookie" constant

@@ -43,6 +43,7 @@ instance Arbitrary Stun.Message where
         messageClass <- arbitrary
         transactionID <- arbitrary
         messageAttributes <- arbitrary
+        fingerprint <- arbitrary
         return Stun.Message{..}
 
 

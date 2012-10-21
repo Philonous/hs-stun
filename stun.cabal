@@ -22,6 +22,7 @@ library
                      , text
                      , stringprep
                      , random
+                     , digest
 
 test-suite test-serialize
     type:          exitcode-stdio-1.0
@@ -33,6 +34,7 @@ test-suite test-serialize
                  , bytestring
                  , text
                  , random
+                 , digest
                  , QuickCheck
                  , test-framework
                  , test-framework-quickcheck2

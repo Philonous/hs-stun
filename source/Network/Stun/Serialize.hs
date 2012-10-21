@@ -9,9 +9,12 @@ import           Control.Monad
 import           Data.Bits
 import           Data.Serialize
 import           Data.Word
+import           Data.Digest.CRC32
 import           Network
 import           Network.Stun.Base
 import           Numeric
+
+import Debug.Trace
 
 import qualified Data.ByteString as BS
 
@@ -66,10 +69,19 @@ decodeMessageType word = (method, mClass)
         .|. ((word .&. 0x3e00) `shiftR` 2) -- highest 5 bits are offset by 2
 
 
-putMessage :: Message -> PutM ()
-putMessage Message{..} = do
+fingerprintXorConstant :: Word32
+fingerprintXorConstant = 0x5354554e
+
+fingerprintAttribute :: Word32 -> Attribute
+fingerprintAttribute crc = Attribute { attributeType = 0x8028
+                            , attributeValue = encode $ crc `xor` fingerprintXorConstant
+                            }
+
+putPlainMessage :: Int -> Message -> PutM ()
+putPlainMessage plusSize m@Message{..} = do
     putWord16be (encodeMessageType messageMethod messageClass)
-    let messageLength = (fromIntegral $ BS.length messageBody)
+    let messageBody = runPut . void $ mapM put messageAttributes
+    let messageLength = (fromIntegral $ BS.length messageBody + plusSize)
     putWord16be messageLength
     putWord32be cookie
     let (tid1, tid2, tid3) = transactionID
@@ -77,19 +89,35 @@ putMessage Message{..} = do
     putWord32be tid2
     putWord32be tid3
     putByteString messageBody
-  where
-    messageBody = runPut . void $ mapM put messageAttributes
+
+putMessage m | fingerprint m = do
+    let msg = runPut $ putPlainMessage 8 m
+    putByteString msg
+    put . fingerprintAttribute . crc32 $ msg
+             | otherwise = putPlainMessage 0 m
 
 getMessage = do
-    tp <- getWord16be
-    guard $ 0xc000 .&. tp == 0 -- highest 2 bits are 0
-    let (messageMethod, messageClass) = decodeMessageType tp
-    messageLength <- getWord16be
-    guard $ messageLength `mod` 4 == 0
-    guard . (== cookie) =<< getWord32be
-    transactionID <- liftM3 (,,) getWord32be getWord32be getWord32be
-    messageAttributes <- getMessageAttributes
-    return Message{..}
+    (mlen, msg) <- lookAhead $ do
+        tp <- getWord16be
+        guard $ 0xc000 .&. tp == 0 -- highest 2 bits are 0
+        let (messageMethod, messageClass) = decodeMessageType tp
+        messageLength <- fromIntegral `fmap` getWord16be
+        guard $ messageLength `mod` 4 == 0
+        guard . (== cookie) =<< getWord32be
+        transactionID <- liftM3 (,,) getWord32be getWord32be getWord32be
+        messageAttributes <- getMessageAttributes
+        let fingerprint = False
+        return (messageLength, Message{..})
+    case reverse . messageAttributes $ msg of
+        (Attribute 0x8028 fp :_) -> do
+            start <- getBytes ( 20 -- header length
+                              + mlen - 8)
+            let crc = fingerprintXorConstant `xor` crc32 start
+            label "fingeprint does not match" $ guard (encode crc == fp)
+            return msg{ fingerprint = encode crc == fp
+                      , messageAttributes = init . messageAttributes $ msg
+                      }
+        _ -> return msg
   where
     getMessageAttributes = isEmpty >>= \e -> if e then return [] else go
     go = do
