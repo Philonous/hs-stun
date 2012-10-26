@@ -17,12 +17,14 @@ library
   -- other-modules:
   build-depends:       base ==4.6.*
                      , network ==2.4.*
+                     , transformers
                      , cereal
                      , bytestring
                      , text
                      , stringprep
                      , random
                      , digest
+                     , unbounded-delays
 
 test-suite test-serialize
     type:          exitcode-stdio-1.0
@@ -30,11 +32,13 @@ test-suite test-serialize
     hs-source-dirs: source
     build-depends: base ==4.6.*
                  , network ==2.4.*
+                 , transformers
                  , cereal
                  , bytestring
                  , text
                  , random
                  , digest
+                 , unbounded-delays
                  , QuickCheck
                  , test-framework
                  , test-framework-quickcheck2
