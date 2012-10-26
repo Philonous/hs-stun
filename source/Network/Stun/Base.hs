@@ -11,18 +11,21 @@ data MessageClass = Request
                   | Indication
                     deriving (Show, Eq)
 
-data Attribute = Attribute { attributeType :: Word16
+data Attribute = Attribute { attributeType :: {-# UNPACK #-} !Word16
                            , attributeValue :: BS.ByteString
                            } deriving (Show, Eq)
 
 
-type TransactionID = (Word32, Word32, Word32)
+data TransactionID = TID {-# UNPACK #-} !Word32
+                         {-# UNPACK #-} !Word32
+                         {-# UNPACK #-} !Word32
+                         deriving (Show, Read, Eq)
 
-data Message = Message { messageMethod :: Method
-                       , messageClass  :: MessageClass
-                       , transactionID :: TransactionID
+data Message = Message { messageMethod :: !Method
+                       , messageClass  :: !MessageClass
+                       , transactionID :: !TransactionID
                        , messageAttributes   :: [Attribute]
-                       , fingerprint    :: Bool
+                       , fingerprint   :: !Bool
                        } deriving (Eq, Show)
 
 -- "magic cookie" constant

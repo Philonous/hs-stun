@@ -41,7 +41,7 @@ instance Arbitrary Stun.Message where
     arbitrary = do
         messageMethod <- (`mod` (2^12)) `liftM` arbitrary
         messageClass <- arbitrary
-        transactionID <- arbitrary
+        transactionID <- liftM3 Stun.TID arbitrary arbitrary arbitrary
         messageAttributes <- arbitrary
         fingerprint <- arbitrary
         return Stun.Message{..}

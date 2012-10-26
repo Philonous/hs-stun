@@ -84,7 +84,7 @@ putPlainMessage plusSize m@Message{..} = do
     let messageLength = (fromIntegral $ BS.length messageBody + plusSize)
     putWord16be messageLength
     putWord32be cookie
-    let (tid1, tid2, tid3) = transactionID
+    let (TID tid1 tid2 tid3) = transactionID
     putWord32be tid1
     putWord32be tid2
     putWord32be tid3
@@ -104,8 +104,8 @@ getMessage = do
         messageLength <- fromIntegral `fmap` getWord16be
         guard $ messageLength `mod` 4 == 0
         guard . (== cookie) =<< getWord32be
-        transactionID <- liftM3 (,,) getWord32be getWord32be getWord32be
-        messageAttributes <- getMessageAttributes
+        transactionID <- liftM3 TID getWord32be getWord32be getWord32be
+        messageAttributes <- isolate messageLength getMessageAttributes
         let fingerprint = False
         return (messageLength, Message{..})
     case reverse . messageAttributes $ msg of
@@ -114,7 +114,7 @@ getMessage = do
                               + mlen - 8)
             let crc = fingerprintXorConstant `xor` crc32 start
             label "fingeprint does not match" $ guard (encode crc == fp)
-            return msg{ fingerprint = encode crc == fp
+            return msg{ fingerprint = True
                       , messageAttributes = init . messageAttributes $ msg
                       }
         _ -> return msg
