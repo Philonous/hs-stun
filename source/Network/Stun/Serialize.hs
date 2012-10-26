@@ -45,7 +45,7 @@ encodeMessageType method messageClass =
     .|. ((method .&. 0x70)  `shiftL` 1) -- next 3 bits are offset by 1
     .|. (c1 `shiftL` 8)                 -- bit 9 is class high bit
     .|. ((method .&. 0xf80) `shiftL` 2) -- highest 5 bits are offset by 2
-    -- most significant 2 bits reamin 0
+    -- most significant 2 bits remain 0
   where
     (c1, c0) = case messageClass of
         Request    -> (0,0)
@@ -91,27 +91,36 @@ putPlainMessage plusSize m@Message{..} = do
     putByteString messageBody
 
 putMessage m | fingerprint m = do
+    -- The rfc demands that we crc32 the message until the beginning of the
+    -- fingerprint attribute, but with the message length already set to the
+    -- length of the entire message (including fingerprint), so we pass the
+    -- length of the fingerprint attribute (8 byte) to be added to the length
     let msg = runPut $ putPlainMessage 8 m
     putByteString msg
     put . fingerprintAttribute . crc32 $ msg
+             -- No fingerprint demanded
              | otherwise = putPlainMessage 0 m
 
 getMessage = do
     (mlen, msg) <- lookAhead $ do
         tp <- getWord16be
-        guard $ 0xc000 .&. tp == 0 -- highest 2 bits are 0
+        guard $ 0xc000 .&. tp == 0 -- highest 2 bits are always 0
         let (messageMethod, messageClass) = decodeMessageType tp
         messageLength <- fromIntegral `fmap` getWord16be
         guard $ messageLength `mod` 4 == 0
-        guard . (== cookie) =<< getWord32be
+        guard . (== cookie) =<< getWord32be -- "Magic cookie"
         transactionID <- liftM3 TID getWord32be getWord32be getWord32be
         messageAttributes <- isolate messageLength getMessageAttributes
         let fingerprint = False
         return (messageLength, Message{..})
-    case reverse . messageAttributes $ msg of
+    case reverse . messageAttributes $ msg of -- Fingerprint has to be the last
+                                              -- attribute
         (Attribute 0x8028 fp :_) -> do
-            start <- getBytes ( 20 -- header length
-                              + mlen - 8)
+            start <- getBytes ( 20    -- header length
+                              + mlen  -- plus message length
+                              - 8     -- but only up to the beginning of
+                                      -- fingerprint
+                              )
             let crc = fingerprintXorConstant `xor` crc32 start
             label "fingeprint does not match" $ guard (encode crc == fp)
             return msg{ fingerprint = True
@@ -131,4 +140,5 @@ instance Serialize Message where
     put = putMessage
     get = getMessage
 
+-- Helper for debugging bit-twiddling
 showBits a = reverse [if testBit a i then '1' else '0' | i <- [0.. bitSize a - 1]]
