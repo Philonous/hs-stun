@@ -127,21 +127,16 @@ findMappedAddress :: S.SockAddr -- ^ STUN server address
 findMappedAddress host localPort timeOuts = runErrorT $ do
     br <- liftIO $ bindRequest
     (msg, s) <- ErrorT $ stunRequest' host localPort timeOuts br
-    let xma' = find ((== xmaAttributeType) . attributeType ) $ messageAttributes msg
-    xma <- case xma' of
-        Nothing -> return Nothing
-        Just xma'' -> case decode . attributeValue $ xma'' of
-            Left e -> throwError $ ProtocolError -- answer
-            Right r -> return . Just $! xorAddress (transactionID msg) r
-    let ma' = find ((== maAttributeType) . attributeType ) $ messageAttributes msg
-    ma <- case ma' of
-        Nothing -> return Nothing
-        Just ma'' -> case decode . attributeValue $ ma'' of
-            Left e -> throwError $ ProtocolError -- answer
-            Right r -> return . Just $! r
+    xma <- case findAttribute $ messageAttributes msg of
+        Right [xma] -> return . Just
+                         $! fromXorMappedAddress (transactionID msg) xma
+        _ -> throwError $ ProtocolError
+    ma <- case  findAttribute $ messageAttributes msg of
+        Right [ma] -> return . Just $! unMA ma
+        _ -> throwError $ ProtocolError
     m <- case (xma <|> ma) of
         Just m' -> return m'
         Nothing -> throwError $ ProtocolError -- no mapped Address
     local <- liftIO $ S.getSocketName s
     liftIO $ S.sClose  s
-    return $ (unMA m, local)
+    return $ (m, local)

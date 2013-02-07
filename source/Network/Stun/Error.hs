@@ -8,8 +8,10 @@ import           Data.Serialize
 import           Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import           Data.Word
 
 import           Network.Stun.Serialize
+import           Network.Stun.Base
 import qualified Data.ByteString as BS
 
 data ErrorAttribute = ErrorAttribute  { code :: {-# UNPACK #-}!Int
@@ -18,6 +20,9 @@ data ErrorAttribute = ErrorAttribute  { code :: {-# UNPACK #-}!Int
                                       , reason :: !Text -- ^ At most 128 unicode
                                                         -- characters
                                       } deriving (Show, Eq)
+
+instance IsAttribute ErrorAttribute where
+    attributeTypeValue _ = 0x0009
 
 putErrorAttribute ErrorAttribute{..} = do
     putWord16be 0

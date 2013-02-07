@@ -24,16 +24,35 @@ maAttributeType = 0x0001
 newtype MappedAddress = MA{unMA :: SockAddr }
                deriving (Eq, Show)
 
+instance Serialize MappedAddress where
+    put = putAddress . unMA
+    get = MA `liftM` getAddress
+
+instance IsAttribute MappedAddress where
+    attributeTypeValue _ = 0x0001
+
+
+newtype XorMappedAddress = XMA{unXMA :: SockAddr }
+               deriving (Eq, Show)
+
+instance Serialize XorMappedAddress where
+    put = putAddress . unXMA
+    get = XMA `liftM` getAddress
+
+instance IsAttribute XorMappedAddress where
+    attributeTypeValue _ = 0x0020
+
+
 -- most significant 16 bits of the magic cookie
 halfCookie :: Word16
 halfCookie = fromIntegral $ cookie `shiftR` 16
 
-putAddress (MA (SockAddrInet port address)) = do
+putAddress (SockAddrInet port address) = do
     putWord8 0
     putWord8 1
     putWord16be $ fromIntegral port
     putWord32host address -- address already is BE
-putAddress (MA (SockAddrInet6 port _ (addr1, addr2, addr3, addr4) _ )) = do
+putAddress (SockAddrInet6 port _ (addr1, addr2, addr3, addr4) _ ) = do
     putWord8 0
     putWord8 2
     putWord16be $ fromIntegral port
@@ -50,21 +69,24 @@ getAddress = do
     case family of
         1 -> do
             address <- getWord32host
-            return . MA $ SockAddrInet port address
+            return $ SockAddrInet port address
         2 -> do
             addr1 <- getWord32be
             addr2 <- getWord32be
             addr3 <- getWord32be
             addr4 <- getWord32be
-            return . MA $ (SockAddrInet6 port 0 (addr1, addr2, addr3, addr4)) 0
+            return $ (SockAddrInet6 port 0 (addr1, addr2, addr3, addr4)) 0
         _ -> mzero
 
-xorAddress _ (MA (SockAddrInet port address)) =
-    MA $ SockAddrInet (fromIntegral (halfCookie `xor` (fromIntegral port)))
+fromXorMappedAddress tid (XMA addr) = xorAddress tid addr
+xorMappedAddress tid addr = XMA $ xorAddress tid addr
+
+xorAddress _ (SockAddrInet port address) =
+    SockAddrInet (fromIntegral (halfCookie `xor` (fromIntegral port)))
                       (htonl cookie `xor` address)
 xorAddress (TID tid1 tid2 tid3)
-           (MA (SockAddrInet6 port fi (addr1, addr2, addr3, addr4) sid)) =
-    MA $ SockAddrInet6 (fromIntegral (halfCookie `xor` (fromIntegral port)))
+           (SockAddrInet6 port fi (addr1, addr2, addr3, addr4) sid) =
+    SockAddrInet6 (fromIntegral (halfCookie `xor` (fromIntegral port)))
           fi
           ( cookie `xor` addr1
           , tid1   `xor` addr2
@@ -72,7 +94,3 @@ xorAddress (TID tid1 tid2 tid3)
           , tid3   `xor` addr4
           )
           sid
-
-instance Serialize MappedAddress where
-    put = putAddress
-    get = getAddress
