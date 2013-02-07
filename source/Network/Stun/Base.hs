@@ -28,6 +28,6 @@ data Message = Message { messageMethod :: !Method
                        , fingerprint   :: !Bool
                        } deriving (Eq, Show)
 
--- "magic cookie" constant
+-- | "magic cookie" constant
 cookie :: Word32
 cookie = 0x2112A442

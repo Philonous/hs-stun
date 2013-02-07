@@ -1,4 +1,19 @@
-module Network.Stun where
+module Network.Stun
+       ( bindRequest
+       , stunRequest
+       , stunRequest'
+       , findMappedAddress
+       , MessageClass(..)
+       , Attribute(..)
+       , TransactionID(..)
+       , Message(..)
+       , StunError(..)
+       , module Network.Stun.Base
+       , module Network.Stun.MappedAddress
+       , module Network.Stun.Error
+       )
+
+       where
 
 import Data.Word
 import Data.Digest.CRC32
