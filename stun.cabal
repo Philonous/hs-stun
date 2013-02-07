@@ -13,9 +13,12 @@ cabal-version:       >=1.8
 
 library
   exposed-modules:     Network.Stun
+  other-modules:       Network.Stun.Base
+                     , Network.Stun.Error
+                     , Network.Stun.MappedAddress
+                     , Network.Stun.Serialize
   hs-source-dirs:      source
-  -- other-modules:
-  build-depends:       base ==4.6.*
+  build-depends:       base >= 4.5
                      , network ==2.4.*
                      , transformers
                      , cereal
