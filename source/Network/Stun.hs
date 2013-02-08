@@ -11,6 +11,7 @@ module Network.Stun
        , module Network.Stun.Base
        , module Network.Stun.MappedAddress
        , module Network.Stun.Error
+       , module Network.Stun.Credentials
        )
 
        where
@@ -35,6 +36,7 @@ import Network.Stun.Serialize
 import Network.Stun.Base
 import Network.Stun.MappedAddress
 import Network.Stun.Error
+import Network.Stun.Credentials
 
 import qualified Network.Socket as S
 import qualified Network.Socket.ByteString as SocketBS

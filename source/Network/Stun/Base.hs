@@ -35,6 +35,7 @@ cookie :: Word32
 cookie = 0x2112A442
 
 data AttributeError = AttributeWrongType | AttributeDecodeError
+                                           deriving (Show, Eq)
 
 class Serialize a => IsAttribute a where
     attributeTypeValue :: a -> Word16

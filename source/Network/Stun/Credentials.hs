@@ -1,0 +1,93 @@
+module Network.Stun.Credentials
+    ( Credentials(..)
+    , Username(..)
+    , MessageIntegrity(..)
+    , withMessageIntegrity
+    , checkMessageIntegrity
+    ) where
+
+import           Control.Monad
+import           Crypto.HMAC
+import qualified Crypto.Hash.MD5 as MD5
+import qualified Crypto.Hash.SHA1 as SHA1
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
+import           Data.ByteString.Lazy (fromChunks)
+import           Data.List
+import           Data.Serialize
+import           Data.Text (Text)
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+
+import           Network.Stun.Base
+import           Network.Stun.Serialize
+
+data Username = Username {unUsername :: !Text}
+
+instance Serialize Username where
+    put = putByteString . Text.encodeUtf8 . unUsername
+    get = (Username . Text.decodeUtf8) `liftM` ensure 0
+
+instance IsAttribute Username where
+    attributeTypeValue _ = 0x0006
+
+data Credentials = LongTerm !Text !Text !Text -- ^ username realm password
+                 | ShortTerm !Text -- ^ password
+
+data MessageIntegrity = MessageIntegrity { miHmac :: !ByteString}
+                          deriving (Show, Eq)
+
+instance Serialize MessageIntegrity where
+    put = putByteString . miHmac
+    get = MessageIntegrity `fmap` ensure 20
+
+instance IsAttribute MessageIntegrity where
+    attributeTypeValue _ = 0x0008
+
+mkMessageIntegrity cred m = let
+    msg = runPut $ putPlainMessage 24 m
+    key = case cred of
+        LongTerm uname realm pwd -> MacKey . MD5.hash
+                                    . Text.encodeUtf8
+                                    . Text.intercalate (Text.singleton ':') $
+                                    [ uname
+                                    , realm
+                                    , pwd -- TODO: SaslPrep
+                                    ]
+        ShortTerm pwd -> MacKey $ Text.encodeUtf8 pwd --TODO: SaslPrep
+    mac :: SHA1.SHA1
+    mac = hmac key $ fromChunks [msg]
+    in MessageIntegrity $ encode mac
+
+-- | Generate a MESSAGE-INTEGRITY attribute and append it to the message
+-- attribute list
+withMessageIntegrity :: Credentials -> Message -> Message
+withMessageIntegrity cred msg = msg{messageAttributes =
+                                         messageAttributes msg ++ [integrity]
+                                   }
+  where
+    integrity = toAttribute $ mkMessageIntegrity cred msg
+
+
+-- | Checks the credentials of a message
+--
+-- * returns Nothing when the credentials don't match
+--
+-- * returns Just (False, oldmsg) when no MESSAGE-INTEGRITY attribute is present
+--
+-- where oldmsg is the unchanged message passed to the function
+--
+-- * returns Just (True, prunedmsg) when the attribute is present and matches
+--
+-- where prunedmsg is the message with all fields after MESSAGE-INTEGRITY removed
+checkMessageIntegrity :: Credentials -> Message -> Maybe (Bool, Message)
+checkMessageIntegrity cred msg = let
+    (attrs, rest) = break ((==)(attributeTypeValue (undefined :: MessageIntegrity))
+                       . attributeType ) $ messageAttributes msg
+    in case rest of
+        [] -> Just (False, msg)
+        (inte: _) -> if fromAttribute inte
+                       == Right (mkMessageIntegrity cred
+                                   msg{messageAttributes = attrs})
+                       then Just (True, msg {messageAttributes = attrs})
+                     else Nothing

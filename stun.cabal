@@ -28,6 +28,9 @@ library
                      , random
                      , digest
                      , unbounded-delays
+                     , bytestring
+                     , cryptohash
+                     , crypto-api
 
 test-suite test-serialize
     type:          exitcode-stdio-1.0
