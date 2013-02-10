@@ -132,9 +132,11 @@ findMappedAddress host localPort timeOuts = runErrorT $ do
     xma <- case findAttribute $ messageAttributes msg of
         Right [xma] -> return . Just
                          $! fromXorMappedAddress (transactionID msg) xma
+        Right [] -> return Nothing
         _ -> throwError $ ProtocolError
     ma <- case  findAttribute $ messageAttributes msg of
         Right [ma] -> return . Just $! unMA ma
+        Right [] -> return Nothing
         _ -> throwError $ ProtocolError
     m <- case (xma <|> ma) of
         Just m' -> return m'
