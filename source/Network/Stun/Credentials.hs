@@ -32,7 +32,11 @@ instance IsAttribute Username where
     attributeTypeValue _ = 0x0006
 
 data Credentials = LongTerm !Text !Text !Text -- ^ username realm password
-                 | ShortTerm !Text -- ^ password
+                 | ShortTerm !Text !Text -- ^ username password
+
+cUsername :: Credentials -> Text
+cUsername (LongTerm uname _ _) = uname
+cUsername (ShortTerm uname _) = uname
 
 data MessageIntegrity = MessageIntegrity { miHmac :: !ByteString}
                           deriving (Show, Eq)
@@ -54,7 +58,7 @@ mkMessageIntegrity cred m = let
                                     , realm
                                     , pwd -- TODO: SaslPrep
                                     ]
-        ShortTerm pwd -> MacKey $ Text.encodeUtf8 pwd --TODO: SaslPrep
+        ShortTerm _ pwd -> MacKey $ Text.encodeUtf8 pwd --TODO: SaslPrep
     mac :: SHA1.SHA1
     mac = hmac key $ fromChunks [msg]
     in MessageIntegrity $ encode mac
@@ -63,10 +67,13 @@ mkMessageIntegrity cred m = let
 -- attribute list
 withMessageIntegrity :: Credentials -> Message -> Message
 withMessageIntegrity cred msg = msg{messageAttributes =
-                                         messageAttributes msg ++ [integrity]
+                                         messageAttributes msg ++ [uname, integrity]
                                    }
   where
-    integrity = toAttribute $ mkMessageIntegrity cred msg
+    uname = toAttribute $ Username (cUsername cred)
+    integrity = toAttribute $
+                mkMessageIntegrity cred msg{messageAttributes =
+                                                 messageAttributes msg ++ [uname]}
 
 
 -- | Checks the credentials of a message
