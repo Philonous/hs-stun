@@ -11,16 +11,13 @@ import           Crypto.HMAC
 import qualified Crypto.Hash.CryptoAPI as Crypto
 import qualified Crypto.Classes as Crypto
 import           Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
 import           Data.ByteString.Lazy (fromChunks)
-import           Data.List
 import           Data.Serialize
 import           Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 
 import           Network.Stun.Base
-import           Network.Stun.Serialize
 
 data Username = Username {unUsername :: !Text}
 

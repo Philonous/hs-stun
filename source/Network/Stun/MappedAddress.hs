@@ -2,18 +2,12 @@ module Network.Stun.MappedAddress where
 
 import Control.Applicative ((<$>))
 import Control.Monad
-
 import Data.Bits
 import Data.Serialize
 import Data.Word
-
-import Network
 import Network.Endian
 import Network.Socket
 import Network.Stun.Base
-import Network.Socket(SockAddr(..))
-
-import Data.Serialize
 
 xmaAttributeType :: Word16
 xmaAttributeType = 0x0020
@@ -47,6 +41,7 @@ instance IsAttribute XorMappedAddress where
 halfCookie :: Word16
 halfCookie = fromIntegral $ cookie `shiftR` 16
 
+putAddress :: SockAddr -> PutM ()
 putAddress (SockAddrInet port address) = do
     putWord8 0
     putWord8 1
@@ -62,6 +57,7 @@ putAddress (SockAddrInet6 port _ (addr1, addr2, addr3, addr4) _ ) = do
     putWord32be addr4
 putAddress _ = error "putAddress: Address type not implemented"
 
+getAddress :: Get SockAddr
 getAddress = do
     guard . (== 0) =<< getWord8
     family <- getWord8
@@ -78,9 +74,13 @@ getAddress = do
             return $ (SockAddrInet6 port 0 (addr1, addr2, addr3, addr4)) 0
         _ -> mzero
 
+fromXorMappedAddress :: TransactionID -> XorMappedAddress -> SockAddr
 fromXorMappedAddress tid (XMA addr) = xorAddress tid addr
+
+xorMappedAddress :: TransactionID -> SockAddr -> XorMappedAddress
 xorMappedAddress tid addr = XMA $ xorAddress tid addr
 
+xorAddress :: TransactionID -> SockAddr -> SockAddr
 xorAddress _ (SockAddrInet port address) =
     SockAddrInet (fromIntegral (halfCookie `xor` (fromIntegral port)))
                       (htonl cookie `xor` address)
@@ -94,3 +94,4 @@ xorAddress (TID tid1 tid2 tid3)
           , tid3   `xor` addr4
           )
           sid
+xorAddress _ _ = error "xorAddress does not work on SockAddrUnix"

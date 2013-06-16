@@ -16,7 +16,6 @@ library
   other-modules:       Network.Stun.Base
                      , Network.Stun.Error
                      , Network.Stun.MappedAddress
-                     , Network.Stun.Serialize
                      , Network.Stun.Credentials
   hs-source-dirs:      source
   build-depends:       base >= 4.5
@@ -33,6 +32,7 @@ library
                      , cryptohash-cryptoapi
                      , cryptohash
                      , crypto-api
+  ghc-options: -Wall
 
 test-suite test-serialize
     type:          exitcode-stdio-1.0

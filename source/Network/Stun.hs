@@ -12,43 +12,29 @@ module Network.Stun
        , module Network.Stun.MappedAddress
        , module Network.Stun.Error
        , module Network.Stun.Credentials
-       )
+       ) where
 
-       where
-
-import Data.Word
-import Data.Digest.CRC32
-import Data.List(find)
-import Control.Applicative
-import Control.Concurrent
-import Control.Concurrent.Timeout
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Error
-import System.Random
-
-import Data.Serialize
-import qualified Data.ByteString as BS
-
-import Foreign
-import Foreign.C
-
-import Network.Stun.Serialize
-import Network.Stun.Base
-import Network.Stun.MappedAddress
-import Network.Stun.Error
-import Network.Stun.Credentials
-
+import           Control.Applicative
+import           Control.Concurrent.Timeout
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Error
+import           Data.Serialize
+import qualified Network.BSD as Net
 import qualified Network.Socket as S
 import qualified Network.Socket.ByteString as SocketBS
-import qualified Network.BSD as Net
+import           Network.Stun.Base
+import           Network.Stun.Credentials
+import           Network.Stun.Error
+import           Network.Stun.MappedAddress
+import           System.Random
 
 -- | Generate a new bind request
 bindRequest :: IO Message
 bindRequest = do
-    id <- TID <$> randomIO <*> randomIO <*> randomIO
+    tid <- TID <$> randomIO <*> randomIO <*> randomIO
     return $ Message { messageMethod = 1
                      , messageClass = Request
-                     , transactionID = id
+                     , transactionID = tid
                      , messageAttributes = []
                      , fingerprint = True
                      }
@@ -84,20 +70,21 @@ stunRequest'
                     -- [0.5s,  1s, 2s] if empty. 0 means wait indefinitly.
   -> Message        -- ^ Request to send
   -> IO (Either StunError (Message, S.Socket))
-stunRequest' host' localPort timeOuts msg = runErrorT $ do
+stunRequest' host' _localPort timeOuts msg = runErrorT $ do
     let host  = setHostPort host'
     s <- liftIO $ case host of
-        S.SockAddrInet hostPort ha ->  do
+        S.SockAddrInet _hostPort _ha ->  do
             s <- S.socket S.AF_INET S.Datagram S.defaultProtocol
             return s
-        S.SockAddrInet6 hostPort fi ha sid -> do
+        S.SockAddrInet6 _hostPort _fi _ha _sid -> do
             s <- S.socket S.AF_INET6 S.Datagram S.defaultProtocol
             S.setSocketOption s S.IPv6Only 1
             return s
+        _ -> error $ "stunRequest': SockAddrUnix not implemented"
     liftIO $ S.connect s host
     let go [] = liftIO (S.close s) >> throwError TimeOut
         go (to:tos) = do
-            liftIO $ SocketBS.sendTo s (encode msg) host
+            _ <- liftIO $ SocketBS.sendTo s (encode msg) host
             r <- liftIO . timeout to $ SocketBS.recvFrom s 1024
             case r of
                 Nothing -> go tos
@@ -105,11 +92,11 @@ stunRequest' host' localPort timeOuts msg = runErrorT $ do
     answer <- go $ if null timeOuts then [500000, 1000000, 2000000] else timeOuts
     case decode answer of
         Left _ -> throwError $ ProtocolError -- answer
-        Right msg -> do
+        Right msg' -> do
             case messageClass msg of
-                Failure -> throwError $ ErrorMsg msg
-                Success -> return (msg, s)
-                _ -> throwError $ WrongMessageType msg
+                Failure -> throwError $ ErrorMsg msg'
+                Success -> return (msg', s)
+                _ -> throwError $ WrongMessageType msg'
   where
     setHostPort (S.SockAddrInet pn ha) = S.SockAddrInet
                                          (if pn == 0 then 3478 else pn) ha
