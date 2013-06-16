@@ -93,7 +93,7 @@ stunRequest' host' _localPort timeOuts msg = runErrorT $ do
     case decode answer of
         Left _ -> throwError $ ProtocolError -- answer
         Right msg' -> do
-            case messageClass msg of
+            case messageClass msg' of
                 Failure -> throwError $ ErrorMsg msg'
                 Success -> return (msg', s)
                 _ -> throwError $ WrongMessageType msg'
