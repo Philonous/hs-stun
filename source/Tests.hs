@@ -2,21 +2,19 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
+import           Control.Applicative
+import           Control.Monad
+import qualified Data.ByteString as BS
 import           Data.Serialize
 import qualified Data.Text as Text
 import           Data.Word
+import           Network.Socket
 import qualified Network.Stun.Base as Stun
 import qualified Network.Stun.Error as Stun
 import qualified Network.Stun.MappedAddress as Stun
-import qualified Network.Stun.Serialize as Stun
-
-import           Test.QuickCheck
-import           Test.Framework.Providers.QuickCheck2
 import           Test.Framework
-
-import qualified Data.ByteString as BS
-import           Control.Applicative
-import           Control.Monad
+import           Test.Framework.Providers.QuickCheck2
+import           Test.QuickCheck
 
 instance Arbitrary Stun.MessageClass where
     arbitrary = elements [ Stun.Request
@@ -58,35 +56,44 @@ instance Arbitrary Stun.Attribute where
 test4 = testProperty "checkSerializer/Attribute"
             (checkSerializer :: Stun.Attribute -> Bool)
 
-instance Arbitrary Stun.Address where
+
+instance Arbitrary SockAddr where
     arbitrary = do
         fam <- (`mod` 2) <$> (arbitrary :: Gen Int)
         port <- fromIntegral <$> (arbitrary :: Gen Word16)
         case fam of
-            1 -> Stun.Inet port <$> arbitrary
+            1 -> SockAddrInet port <$> arbitrary
             0 -> do
                 addr <- (,,,) <$> arbitrary
                               <*> arbitrary
                               <*> arbitrary
                               <*> arbitrary
+                return $ SockAddrInet6 port 0 addr 0 -- Flow and scopeID aren't
+                                                     -- encoded
 
-                return $ Stun.Inet6 port addr
+
+instance Arbitrary Stun.MappedAddress where
+    arbitrary = Stun.MA <$> arbitrary
+
+
+instance Arbitrary Stun.TransactionID where
+    arbitrary = Stun.TID <$> arbitrary <*> arbitrary <*> arbitrary
 
 test5 = testProperty "checkSerializer/Address"
-            (checkSerializer :: Stun.Address -> Bool)
+            (checkSerializer :: Stun.MappedAddress -> Bool)
 
-xorAddressInvolution tid addr = Stun.xorAddress tid  (Stun.xorAddress tid addr)
+xorAddressInvolution tid addr = Stun.xorAddress tid (Stun.xorAddress tid addr)
                                   == addr
 test6 = testProperty "xorAddressInvolution" xorAddressInvolution
 
-instance Arbitrary Stun.Error where
+instance Arbitrary Stun.ErrorAttribute where
     arbitrary = do
         code <- choose (300,699)
         textLength <- choose (0,128)
         reason <- Text.pack <$> replicateM textLength arbitrary
-        return Stun.Error{..}
+        return Stun.ErrorAttribute{..}
 test7 = testProperty "checkSerializer/Error"
-          (checkSerializer :: Stun.Error -> Bool)
+          (checkSerializer :: Stun.ErrorAttribute -> Bool)
 
 main = defaultMain[ test1
                   , test2
