@@ -1,6 +1,6 @@
 name:                stun
 version:             0.1.0.0
-synopsis:            STUN
+synopsis:            RFC 5389: Session Traversal Utilities for NAT (STUN) client
 -- description:
 license:             MIT
 license-file:        LICENSE
@@ -30,6 +30,7 @@ library
                      , digest
                      , unbounded-delays
                      , bytestring
+                     , cryptohash-cryptoapi
                      , cryptohash
                      , crypto-api
 

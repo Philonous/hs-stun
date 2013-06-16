@@ -8,8 +8,8 @@ module Network.Stun.Credentials
 
 import           Control.Monad
 import           Crypto.HMAC
-import qualified Crypto.Hash.MD5 as MD5
-import qualified Crypto.Hash.SHA1 as SHA1
+import qualified Crypto.Hash.CryptoAPI as Crypto
+import qualified Crypto.Classes as Crypto
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import           Data.ByteString.Lazy (fromChunks)
@@ -48,10 +48,11 @@ instance Serialize MessageIntegrity where
 instance IsAttribute MessageIntegrity where
     attributeTypeValue _ = 0x0008
 
+mkMessageIntegrity :: Credentials -> Message -> MessageIntegrity
 mkMessageIntegrity cred m = let
     msg = runPut $ putPlainMessage 24 m
     key = case cred of
-        LongTerm uname realm pwd -> MacKey . MD5.hash
+        LongTerm uname realm pwd -> MacKey . md5hash
                                     . Text.encodeUtf8
                                     . Text.intercalate (Text.singleton ':') $
                                     [ uname
@@ -59,9 +60,12 @@ mkMessageIntegrity cred m = let
                                     , pwd -- TODO: SaslPrep
                                     ]
         ShortTerm _ pwd -> MacKey $ Text.encodeUtf8 pwd --TODO: SaslPrep
-    mac :: SHA1.SHA1
+    mac :: Crypto.SHA1
     mac = hmac key $ fromChunks [msg]
     in MessageIntegrity $ encode mac
+  where
+    md5hash :: ByteString -> ByteString
+    md5hash = Crypto.encode . (Crypto.hash' :: ByteString -> Crypto.MD5)
 
 -- | Generate a MESSAGE-INTEGRITY attribute and append it to the message
 -- attribute list
