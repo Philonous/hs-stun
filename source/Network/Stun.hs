@@ -1,17 +1,41 @@
+-- |  Session Traversal Utilities for NAT (STUN)
+--
+-- <http://tools.ietf.org/html/rfc5389>
+--
+-- For a simple way to find the mapped address see 'findMappedAddress'
 module Network.Stun
-       ( bindRequest
+       ( -- * Requests
+         bindRequest
        , stunRequest
        , stunRequest'
-       , findMappedAddress
-       , MessageClass(..)
-       , Attribute(..)
-       , TransactionID(..)
+         -- * Messages
        , Message(..)
+       , MessageClass(..)
+       , TransactionID(..)
+         -- * Attributes
+       , Attribute(..)
+       , findAttribute
+       , IsAttribute(..)
+         -- * Mapped Address
+       , findMappedAddress
+       , MappedAddress
+       , XorMappedAddress
+       , fromXorMappedAddress
+       , xorMappedAddress
+         -- * Credentials
+       , Username(..)
+       , Credentials(..)
+       , withMessageIntegrity
+       , checkMessageIntegrity
+         -- * Errors
        , StunError(..)
-       , module Network.Stun.Base
-       , module Network.Stun.MappedAddress
-       , module Network.Stun.Error
-       , module Network.Stun.Credentials
+       , ErrorAttribute(..)
+       , errTryAlternate
+       , errBadRequest
+       , errUnauthorized
+       , errUnknownAttribute
+       , errStaleNonce
+       , errServerError
        ) where
 
 import           Control.Applicative
@@ -106,11 +130,12 @@ stunRequest' host' _localPort timeOuts msg = runErrorT $ do
     setHostPort s = s
 
 -- | Get the mapped address by sending a bind request to /host/, using
--- /localport/. The request will be retransmitted for each entry of /timeOuts/.
+-- /localport/ . The request will be retransmitted for each entry of /timeOuts/.
 -- If the list of time outs is empty, a default of 500ms, 1s and 2s is used
 -- returns the reflexive and the local address
 findMappedAddress :: S.SockAddr -- ^ STUN server address
-                  -> Net.PortNumber -- ^ local port to use
+                  -> Net.PortNumber -- ^ local port to use (or 0 for a random
+                                    -- port)
                   -> [Integer] -- ^ timeOuts in µs (10^-6 seconds)
                   -> IO (Either StunError (S.SockAddr, S.SockAddr))
 findMappedAddress host localPort timeOuts = runErrorT $ do
