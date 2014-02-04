@@ -108,11 +108,11 @@ stunRequest' host' _localPort timeOuts msg = runErrorT $ do
     liftIO $ S.connect s host
     let go [] = liftIO (S.close s) >> throwError TimeOut
         go (to:tos) = do
-            _ <- liftIO $ SocketBS.sendTo s (encode msg) host
-            r <- liftIO . timeout to $ SocketBS.recvFrom s 1024
+            _ <- liftIO $ SocketBS.send s (encode msg)
+            r <- liftIO . timeout to $ SocketBS.recv s 1024
             case r of
                 Nothing -> go tos
-                Just (answer, _) -> return answer
+                Just answer -> return answer
     answer <- go $ if null timeOuts then [500000, 1000000, 2000000] else timeOuts
     case decode answer of
         Left _ -> throwError $ ProtocolError -- answer
