@@ -1,5 +1,5 @@
 name:                stunclient
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            RFC 5389: Session Traversal Utilities for NAT (STUN) client
 description:         RFC 5389: Session Traversal Utilities for NAT (STUN) client
 license:             MIT
