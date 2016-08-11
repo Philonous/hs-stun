@@ -5,7 +5,6 @@ import Control.Monad
 import Data.Bits
 import Data.Serialize
 import Data.Word
-import Network.Endian
 import Network.Socket
 import Network.Stun.Base
 
